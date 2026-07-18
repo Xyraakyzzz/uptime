@@ -130,7 +130,39 @@ lastChecked: ${new Date().toISOString()}
 
           }
 
-          // README akan dibuat di PART 2
-          global.rows = rows;
-          global.online = online;
-          EOF
+          const statusText =
+  online === rows.length
+    ? "🟢 All Systems Operational"
+    : online === 0
+    ? "🔴 Major Outage"
+    : "🟡 Partial Outage";
+
+let readme = `# 📈 KyzzNekoo Infrastructure Status
+
+> **${statusText}**
+> Last updated: **${new Date().toUTCString()}**
+
+## 🚀 Services
+
+| All Service | Status | History | Response time | Uptime |
+|:-----------:|:------:|:-------:|--------------:|-------:|
+`;
+
+for (const row of rows) {
+  readme += `| **[\`${row.sub}\`](https://${row.domain})** | ${
+    row.status ? "🟢 Online" : "🔴 Offline"
+  } | **[\`${row.sub}.yml\`](https://github.com/Xyraakyzzz/uptime/commits/main/history/${row.sub}.yml)** | **${
+    row.status ? row.response + " ms" : "Timeout"
+  }** | **${row.uptime}%** |\n`;
+}
+
+readme += `
+
+---
+
+<p align="center">
+<b>Powered by KyzzNekoo Status Monitor</b>
+</p>
+`;
+
+fs.writeFileSync("README.md", readme);
