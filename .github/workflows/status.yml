@@ -1,0 +1,136 @@
+name: KyzzNekoo Status
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Update Status
+        run: |
+          curl -fsSL https://kyzznekoo.zone.id/database/domain.json -o domains.json
+
+          node <<'EOF'
+          const fs = require("fs");
+          const https = require("https");
+
+          const domains = JSON.parse(fs.readFileSync("domains.json", "utf8"));
+
+          if (!fs.existsSync("history")) {
+            fs.mkdirSync("history");
+          }
+
+          function request(url) {
+            return new Promise(resolve => {
+              const start = Date.now();
+
+              const req = https.get(url, res => {
+                const ms = Date.now() - start;
+
+                res.resume();
+
+                resolve({
+                  ok: res.statusCode >= 200 && res.statusCode < 500,
+                  code: res.statusCode,
+                  response: ms
+                });
+              });
+
+              req.setTimeout(10000, () => {
+                req.destroy();
+                resolve({
+                  ok: false,
+                  code: 0,
+                  response: 0
+                });
+              });
+
+              req.on("error", () => {
+                resolve({
+                  ok: false,
+                  code: 0,
+                  response: 0
+                });
+              });
+            });
+          }
+
+          const rows = [];
+          let online = 0;
+
+          for (const domain of domains) {
+
+            const sub = domain.split(".")[0];
+            const file = `history/${sub}.yml`;
+
+            const result = await request(`https://${domain}`);
+
+            let checks = 0;
+            let success = 0;
+
+            if (fs.existsSync(file)) {
+
+              const text = fs.readFileSync(file, "utf8");
+
+              checks = +(text.match(/checks:\s*(\d+)/)?.[1] || 0);
+
+              success = +(text.match(/success:\s*(\d+)/)?.[1] || 0);
+
+            }
+
+            checks++;
+
+            if (result.ok) {
+              success++;
+              online++;
+            }
+
+            const uptime = ((success / checks) * 100).toFixed(2);
+
+            const yaml =
+`name: ${sub}
+url: https://${domain}
+
+status: ${result.ok ? "up" : "down"}
+httpCode: ${result.code}
+responseTime: ${result.response}
+
+checks: ${checks}
+success: ${success}
+failed: ${checks - success}
+uptime: ${uptime}
+
+lastChecked: ${new Date().toISOString()}
+`;
+
+            fs.writeFileSync(file, yaml);
+
+            rows.push({
+              sub,
+              domain,
+              status: result.ok,
+              response: result.response,
+              uptime
+            });
+
+          }
+
+          // README akan dibuat di PART 2
+          global.rows = rows;
+          global.online = online;
+          EOF
