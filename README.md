@@ -17,6 +17,5 @@
 ---
 
 <p align="center">
-  <b>Powered by KyzzNekoo Status Monitor</b><br>
-  Automatically updated every <b>5 minutes</b> via GitHub Actions.
+  <b>Powered by KyzzNekoo Status Monitor</b>
 </p>
