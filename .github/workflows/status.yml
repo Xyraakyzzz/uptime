@@ -167,6 +167,10 @@ readme += `
 `;
 
 fs.writeFileSync("README.md", readme);
+} catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
 })();
 
 EOF
